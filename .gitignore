@@ -1,0 +1,10 @@
+# IntelliJ project files
+.idea
+*.iml
+config.json
+out
+gen
+.~lock.df0.xlsx#
+.~lock.df1.xlsx#
+df0.xlsx
+df1.xlsx
