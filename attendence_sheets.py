@@ -1,66 +1,103 @@
+import json
+
 import pandas as pd
 from pymongo import MongoClient
 
 
-def generate_columns(max_participants, max_rounds, participants_list):
-    # TODO - Add first column to be receipt no.
-    # Columns for participants
+def get_mapping(file_name):
+    """
+    Gets mapping file name and returns a JSON object
+    :param file_name: name of the mapping file 
+    :return: a python dict created from the JSON configuration
+    """
+    try:
+        with open(file_name) as fields_mapping:
+            mapping = json.load(fields_mapping)
+        return mapping
+    except Exception as ex:
+        print(ex)
+
+
+def generate_columns(max_participants):
+    """
+    Generates columns for participants
+    :param max_participants: Maximum Number of Participants 
+    :return: a python list consisting of column names
+    """
     columns = ['Participant' + str(i + 1) for i in range(0, max_participants)]
-
+    columns.insert(0, 'Receipt No')
     columns.append('Phone')
-
+    columns.append('Present/Absent')
     return columns
 
 
-def populate_df(columns, participants_list, max_participants):
+def populate_df(columns, participants_list, mapping):
+    """
+    Populates a pandas DataFrame based on the participants list
+    :param columns: A python list containing the column names
+    :param participants_list: A python list where each 
+    :param mapping: 
+    :return: 
+    """
+    # Initialize an empty DataFrame
     empty_participant_list = [['' for i in range(0, len(columns))] for i in range(0, len(participants_list))]
     df = pd.DataFrame(empty_participant_list, columns=columns)
-    print(df)
+
+    # Get location of first Participant Column
     participant_loc = df.columns.get_loc('Participant1')
-    plist_loc = 0
+    plist_loc = 0  # Iterator for participants_list
     for index, row in df.iterrows():
-        # TODO - Add first column to be receipt no.
+        # Add Receipt No
+        row['Receipt No'] = participants_list[plist_loc][mapping['pReceiptNo']]
+
         i = 0
-        if type(participants_list[plist_loc]['name']) == list:
-            for participant in participants_list[plist_loc]['name']:
+        if type(participants_list[plist_loc][mapping['pName']]) == list:  # If pName is list
+            for participant in participants_list[plist_loc][mapping['pName']]:
                 row[participant_loc + i] = participant
                 i += 1
         else:
-            row[participant_loc] = participants_list[plist_loc]['name']
+            row[participant_loc] = participants_list[plist_loc][mapping['pName']]
 
-        row['Phone'] = participants_list[plist_loc]['phone']
+        row['Phone'] = participants_list[plist_loc][mapping['pPhone']]
         plist_loc += 1
+
     return df
 
 
-client = MongoClient('mongodb://localhost:27017/')
+def main():
+    # Initialize mongodb client
+    client = MongoClient('mongodb://localhost:27017/')
+    # Get db
+    db = client.test_db
+    # Get collection
+    event_collection = db.Events
 
-db = client.test_db
+    # Initialize Mapping Dict
+    mapping = get_mapping('fields_mapping.json')
 
-event_collection = db.Events
+    df_list = []  # Dict to store dfs of all events
 
-df_list = []
+    for post in event_collection.find():
+        # Get the max number of participants and rounds
+        max_participants = post['Event'][mapping['maxParticipants']]
 
-columns = pd.DataFrame(event_collection.find()[1]['Event']['participants'])
-# print(df)
+        # List of participants
+        participants_list = post['Event'][mapping['participants']]
 
-for post in event_collection.find():
-    print(post)
-    # Get the max number of participants and rounds
-    max_participants = post['Event']['max_participants']
-    max_rounds = len(post['Event']['rounds'])
+        # Generate Columns
+        columns = generate_columns(max_participants)
 
-    # List of participants
-    participants_list = post['Event']['participants']
+        # Populate DataFrame
+        df = populate_df(columns, participants_list, mapping)
 
-    columns = generate_columns(max_participants, max_rounds, participants_list)
+        df_list.append(df)
 
-    df = populate_df(columns, participants_list, max_participants)
+    # Write to excel
+    i = 0
+    for df in df_list:
+        df.to_excel('df' + str(i) + '.xlsx')
+        i += 1
 
-    # print(df)
-    df_list.append(df)
 
-i = 0
-for df in df_list:
-    df.to_excel('df' + str(i) + '.xlsx')
-    i += 1
+if __name__ == '__main__':
+    main()
