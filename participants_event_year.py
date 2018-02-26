@@ -1,11 +1,34 @@
+import json
+import pprint
 from itertools import chain
 
 import pandas as pd
 from pymongo import MongoClient
 
 
+def get_mapping(file_name):
+    """
+    Gets mapping file name and returns a JSON object
+    :param file_name: name of the mapping file 
+    :return: a python dict created from the JSON configuration
+    """
+    try:
+        with open(file_name) as fields_mapping:
+            mapping = json.load(fields_mapping)
+        return mapping
+    except Exception as ex:
+        print(ex)
+
+
 def generate_columns(max_participants, max_rounds, participants_list):
-    unique_years = set(chain.from_iterable([d['year']] for d in participants_list))
+    """
+    
+    :param max_participants: 
+    :param max_rounds: 
+    :param participants_list: 
+    :return: 
+    """
+    unique_years = set(chain.from_iterable([d[mapping['pYear']]] for d in participants_list))
     # convert dates to a legible format
     unique_years = sorted(unique_years)
     columns = [d for d in unique_years]
@@ -20,7 +43,7 @@ def populate_df(columns, participants_list, max_participants, unique_years, fee,
     empty_participant_list = [['' for i in range(0, len(columns))]]
     df = pd.DataFrame(empty_participant_list, columns=columns)
 
-    years = [d['year'] for d in participants_list]
+    years = [d[mapping['pYear']] for d in participants_list]
     total_entries_day = []
     for my_year in unique_years:
         total_entries_day.append(years.count(my_year))
@@ -35,30 +58,22 @@ client = MongoClient('mongodb://localhost:27017/')
 
 db = client.test_db
 
+mapping = get_mapping('fields_mapping.json')
+
 event_collection = db.Events
 
 df_list = []
 
-columns = pd.DataFrame(event_collection.find()[1]['Event']['participants'])
-# print(df)
+data = db.Events.aggregate([{"$project": {"participants": 1, "name": 1}}, {"$unwind": "$participants"},
+                            {"$group": {"_id": {"eventID": "$_id", "year": "$participants.pYear", "name": "$name"},
+                                        "count": {"$sum": 1}}},
+                            {"$group": {"_id": {"eventID": "$_id.eventID", "name": "$_id.name"},
+                                        "entries": {"$push": {"year": "$_id.year", "count": "$count"}}}}])
 
-for post in event_collection.find():
-    print(post)
-    # Get the max number of participants and rounds
-    max_participants = post['Event']['max_participants']
-    max_rounds = len(post['Event']['rounds'])
-    fee = post['Event']['fee']
-    name = post['Event']['Name']
+columns = ['Event Name', 'Year 1', 'Year 2', 'Year 3', 'Year 4']
 
-    # List of participants
-    participants_list = post['Event']['participants']
-
-    columns, unique_years = generate_columns(max_participants, max_rounds, participants_list)
-
-    df = populate_df(columns, participants_list, max_participants, unique_years, fee, name)
-
-    # print(df)
-    df_list.append(df)
+pp = pprint.PrettyPrinter(indent=4)
+pp.pprint(list(data))
 
 i = 0
 for df in df_list:
