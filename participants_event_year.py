@@ -1,6 +1,4 @@
 import json
-import pprint
-from itertools import chain
 
 import pandas as pd
 from pymongo import MongoClient
@@ -20,62 +18,51 @@ def get_mapping(file_name):
         print(ex)
 
 
-def generate_columns(max_participants, max_rounds, participants_list):
-    """
-    
-    :param max_participants: 
-    :param max_rounds: 
-    :param participants_list: 
-    :return: 
-    """
-    unique_years = set(chain.from_iterable([d[mapping['pYear']]] for d in participants_list))
-    # convert dates to a legible format
-    unique_years = sorted(unique_years)
-    columns = [d for d in unique_years]
-    unique_years = [d for d in unique_years]
+def main():
+    # Initialize MongoDB Client
+    client = MongoClient('mongodb://localhost:27017/')
 
-    # insert EventName as first column
-    columns.insert(0, 'EventName')
-    return columns, unique_years
+    # Choose the db
+    db = client.test_db
+
+    # Init Mapping
+    mapping = get_mapping('fields_mapping.json')
+
+    # Empty list for storing pandas DataFrames later
+    df_list = []
+
+    # List of Columns
+    columns = ['Event Name', 'Year 1', 'Year 2', 'Year 3', 'Year 4']
+
+    # Query
+    query_output = db.Events.aggregate([{"$project": {"participants": 1, "name": 1}}, {"$unwind": "$participants"},
+                                        {"$group": {
+                                            "_id": {"eventID": "$_id", "year": "$participants.pYear", "name": "$name"},
+                                            "count": {"$sum": 1}}},
+                                        {"$group": {"_id": {"eventID": "$_id.eventID", "name": "$_id.name"},
+                                                    "entries": {"$push": {"year": "$_id.year", "count": "$count"}}}}])
+
+    query_output = list(query_output)
+    # pp = pprint.PrettyPrinter(indent=4)
+    # pp.pprint(query_output)
+
+    # Loop through events
+    for event in query_output:
+        year_list = [0] * 4
+        i = 0
+        for entry in event['entries']:
+            year_list[entry['year'] - 1] = entry['count']
+        year_list.insert(0, event['_id']['name'])
+        df_list.append(
+            pd.DataFrame(data=[year_list], columns=columns)
+        )
+
+    i = 0
+    for df in df_list:
+        df.to_excel('df' + str(i) + '.xlsx')
+        print(df)
+        i += 1
 
 
-def populate_df(columns, participants_list, max_participants, unique_years, fee, name):
-    empty_participant_list = [['' for i in range(0, len(columns))]]
-    df = pd.DataFrame(empty_participant_list, columns=columns)
-
-    years = [d[mapping['pYear']] for d in participants_list]
-    total_entries_day = []
-    for my_year in unique_years:
-        total_entries_day.append(years.count(my_year))
-        df.at[0, my_year] = total_entries_day[-1]
-
-    df.at[0, 'EventName'] = name
-    print(df)
-    return df
-
-
-client = MongoClient('mongodb://localhost:27017/')
-
-db = client.test_db
-
-mapping = get_mapping('fields_mapping.json')
-
-event_collection = db.Events
-
-df_list = []
-
-data = db.Events.aggregate([{"$project": {"participants": 1, "name": 1}}, {"$unwind": "$participants"},
-                            {"$group": {"_id": {"eventID": "$_id", "year": "$participants.pYear", "name": "$name"},
-                                        "count": {"$sum": 1}}},
-                            {"$group": {"_id": {"eventID": "$_id.eventID", "name": "$_id.name"},
-                                        "entries": {"$push": {"year": "$_id.year", "count": "$count"}}}}])
-
-columns = ['Event Name', 'Year 1', 'Year 2', 'Year 3', 'Year 4']
-
-pp = pprint.PrettyPrinter(indent=4)
-pp.pprint(list(data))
-
-i = 0
-for df in df_list:
-    df.to_excel('df' + str(i) + '.xlsx')
-    i += 1
+if __name__ == '__main__':
+    main()
