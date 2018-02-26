@@ -1,4 +1,5 @@
 import json
+from os import path
 
 import pandas as pd
 from pymongo import MongoClient
@@ -26,7 +27,9 @@ def main():
     db = client.test_db
 
     # Init Mapping
-    mapping = get_mapping('fields_mapping.json')
+    basepath = path.dirname(__file__)
+    filepath = path.abspath(path.join(basepath, "..", "fields_mapping.json"))
+    mapping = get_mapping(filepath)
 
     # Empty list for storing pandas DataFrames later
     df_list = []

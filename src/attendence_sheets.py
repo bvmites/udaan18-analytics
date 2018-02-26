@@ -1,4 +1,5 @@
 import json
+from os import path
 
 import pandas as pd
 from pymongo import MongoClient
@@ -73,16 +74,18 @@ def main():
     event_collection = db.Events
 
     # Initialize Mapping Dict
-    mapping = get_mapping('fields_mapping.json')
+    basepath = path.dirname(__file__)
+    filepath = path.abspath(path.join(basepath, "..", "fields_mapping.json"))
+    mapping = get_mapping(filepath)
 
     df_list = []  # Dict to store dfs of all events
 
     for post in event_collection.find():
         # Get the max number of participants and rounds
-        max_participants = post['Event'][mapping['maxParticipants']]
+        max_participants = post[mapping['maxParticipants']]
 
         # List of participants
-        participants_list = post['Event'][mapping['participants']]
+        participants_list = post[mapping['participants']]
 
         # Generate Columns
         columns = generate_columns(max_participants)
