@@ -1,22 +1,10 @@
-import json
-from os import path
+import sys
 
 import pandas as pd
 from pymongo import MongoClient
 
-
-def get_mapping(file_name):
-    """
-    Gets mapping file name and returns a JSON object
-    :param file_name: name of the mapping file 
-    :return: a python dict created from the JSON configuration
-    """
-    try:
-        with open(file_name) as fields_mapping:
-            mapping = json.load(fields_mapping)
-        return mapping
-    except Exception as ex:
-        print(ex)
+sys.path.append('./src/')
+import helper
 
 
 def generate_columns(max_participants):
@@ -74,9 +62,7 @@ def main():
     event_collection = db.Events
 
     # Initialize Mapping Dict
-    basepath = path.dirname(__file__)
-    filepath = path.abspath(path.join(basepath, "..", "fields_mapping.json"))
-    mapping = get_mapping(filepath)
+    mapping = helper.get_mapping()
 
     df_list = []  # Dict to store dfs of all events
 
