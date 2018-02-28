@@ -1,3 +1,4 @@
+import pprint
 import sys
 
 import pandas as pd
@@ -24,16 +25,28 @@ def main():
     columns = ['Event Name', 'Year 1', 'Year 2', 'Year 3', 'Year 4']
 
     # Query
-    query_output = db.Events.aggregate([{"$project": {"participants": 1, "name": 1}}, {"$unwind": "$participants"},
+    # Actual Query
+    # query_output = db.Events.aggregate([{"$project": {"participants": 1, "name": 1}}, {"$unwind": "$participants"},
+    #                                     {"$group": {
+    #                                         "_id": {"eventID": "$_id", "year": "$participants.pYear", "name": "$name"},
+    #                                         "count": {"$sum": 1}}},
+    #                                     {"$group": {"_id": {"eventID": "$_id.eventID", "name": "$_id.name"},
+    #                                                 "entries": {"$push": {"year": "$_id.year", "count": "$count"}}}}])
+
+    # Mapped Query
+    query_output = db.Events.aggregate([{"$project": {mapping['participants']: 1, mapping["name"]: 1}},
+                                        {"$unwind": "$" + mapping["participants"]},
                                         {"$group": {
-                                            "_id": {"eventID": "$_id", "year": "$participants.pYear", "name": "$name"},
+                                            "_id": {"eventID": "$_id",
+                                                    "year": "$" + mapping['participants'] + "." + mapping["pYear"],
+                                                    "name": "$" + mapping["name"]},
                                             "count": {"$sum": 1}}},
                                         {"$group": {"_id": {"eventID": "$_id.eventID", "name": "$_id.name"},
                                                     "entries": {"$push": {"year": "$_id.year", "count": "$count"}}}}])
 
     query_output = list(query_output)
-    # pp = pprint.PrettyPrinter(indent=4)
-    # pp.pprint(query_output)
+    pp = pprint.PrettyPrinter(indent=4)
+    pp.pprint(query_output)
 
     # Loop through events
     for event in query_output:

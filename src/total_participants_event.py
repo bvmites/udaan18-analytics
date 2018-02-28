@@ -24,9 +24,15 @@ def main():
     columns = ['Event Name', 'Total Participation']
 
     # Query
-    data = db.Events.aggregate([{"$project": {"_id": 1, "name": 1, "participants": 1}},
-                                {"$unwind": "$participants"}, {"$group": {"_id": {"_id": "$_id", "name": "$name"},
+    # data = db.Events.aggregate([{"$project": {"_id": 1, "name": 1, "participants": 1}},
+    #                             {"$unwind": "$participants"}, {"$group": {"_id": {"_id": "$_id", "name": "$name"},
+    #                                                                       "count": {"$sum": 1}}}])
+
+    data = db.Events.aggregate([{"$project": {"_id": 1, mapping["name"]: 1, mapping["participants"]: 1}},
+                                {"$unwind": "$" + mapping["participants"]},
+                                {"$group": {"_id": {"_id": "$_id", "name": "$" + mapping["name"]},
                                                                           "count": {"$sum": 1}}}])
+
     data = list(data)
 
     for event in data:
