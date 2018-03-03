@@ -1,6 +1,8 @@
 import json
 from os import path
 
+from pymongo import MongoClient
+
 
 def get_mapping():
     """
@@ -30,3 +32,16 @@ def get_config():
         return mapping
     except Exception as ex:
         print(ex)
+
+
+def init_db():
+    """
+    Initializes mongoDB client and database
+    :return: instance of database
+    """
+    # Initialize mongodb client
+    config = get_config()
+    client = MongoClient(config['mongodb_connection_string'])
+    # Get db
+    db = client.udaan18
+    return db
