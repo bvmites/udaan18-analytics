@@ -29,8 +29,7 @@ def populate_df(columns, participants_list, mapping):
     :return: 
     """
     # Initialize an empty DataFrame
-    empty_participant_list = [['' for i in range(0, len(columns))] for i in range(0, len(participants_list))]
-    df = pd.DataFrame(empty_participant_list, columns=columns)
+    df = pd.DataFrame(index=range(len(participants_list)), columns=columns)
 
     # Get location of first Participant Column
     participant_loc = df.columns.get_loc('Participant1')
