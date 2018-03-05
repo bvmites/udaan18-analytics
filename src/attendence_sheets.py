@@ -1,7 +1,6 @@
 import sys
 
 import pandas as pd
-from pymongo import MongoClient
 
 sys.path.append('./src/')
 import helper
@@ -53,10 +52,7 @@ def populate_df(columns, participants_list, mapping):
 
 
 def main():
-    # Initialize mongodb client
-    client = MongoClient('mongodb://localhost:27017/')
-    # Get db
-    db = client.test_db
+    db = helper.init_db()
     # Get collection
     event_collection = db.Events
 

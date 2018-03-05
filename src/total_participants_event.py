@@ -1,18 +1,14 @@
 import sys
 
 import pandas as pd
-from pymongo import MongoClient
 
 sys.path.append('./src/')
 import helper
 
 
 def main():
-    # Initialize MongoDB Client
-    client = MongoClient('mongodb://localhost:27017/')
-
     # Choose the db
-    db = client.test_db
+    db = helper.init_db()
 
     # Init Mapping
     mapping = helper.get_mapping()
