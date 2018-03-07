@@ -1,5 +1,4 @@
 import datetime
-import pprint
 import sys
 
 import pandas as pd
@@ -13,7 +12,7 @@ def main():
     db = helper.init_db()
 
     # Init Mapping
-    mapping = helper.get_mapping()
+    mapping = helper.get_mapping('fields_mapping.json')
 
     # Empty list for storing pandas DataFrames later
     df_list = []
@@ -21,68 +20,50 @@ def main():
     # List of Columns
     columns = ['Event Name', 'Date', 'Collections']
 
-    # Query
-    # query_output = db.Events.aggregate([{"$unwind": "$participants"},
-    #                              {"$group": {"_id": {"eventId": "$_id",
-    #                                                  "name": "$name",
-    #                                                  "date": {"$dayOfMonth": "$participants.pRegDate"},
-    #                                                  "month": {"$month": "$participants.pRegDate"},
-    #                                                  "fee": "$fee"},
-    #                                          "count": {"$sum": 1}
-    #                                          }},
-    #                             {"$project": {"_id": 1, "count": 1,
-    #                                           "totalCollection": {"$multiply": ["$_id.fee", "$count"]}}},
-    #                             {"$group": {"_id":
-    #                                             {"eventId": "$_id.eventId", "name": "$_id.name"},
-    #                                         "collections": {"$push": {"date": "$_id.date", "month": "$_id.month",
-    #                                                                   "totalCollection": "$totalCollection"}}}}
-    #                              ])
+    events_output = sorted(
+        (db.events.aggregate([{"$project": {"_id": 1, mapping["name"]: 1, mapping["fee"]: 1}}])),
+        key=lambda k: k['_id']
+    )
 
-    # Mapped Query
-    query_output = db.Events.aggregate([{"$unwind": "$" + mapping["participants"]},
-                                        {"$group": {"_id": {"eventId": "$_id",
-                                                            "name": "$" + mapping["name"],
+    query_output = db.participations.aggregate([{"$group": {"_id": {"eventId": "$eventId",
                                                             "date": {
-                                                                "$dayOfMonth": "$" + mapping["participants"] + "." +
-                                                                               mapping["pRegDate"]},
+                                                                "$dayOfMonth": "$" + mapping["pRegDate"]},
                                                             "month": {
-                                                                "$month": "$" + mapping["participants"] + "." + mapping[
-                                                                    "pRegDate"]},
-                                                            "fee": "$" + mapping["fee"]},
-                                                    "count": {"$sum": 1}
+                                                                "$month": "$" + mapping["pRegDate"]}
+                                                                    },
+                                                            "count": {"$sum": 1}
                                                     }},
-                                        {"$project": {"_id": 1, "count": 1,
-                                                      "totalCollection": {"$multiply": ["$_id.fee", "$count"]}}},
-                                        {"$group": {"_id":
-                                                        {"eventId": "$_id.eventId", "name": "$_id.name"},
-                                                    "collections": {
-                                                        "$push": {"date": "$_id.date", "month": "$_id.month",
-                                                                  "totalCollection": "$totalCollection"}}}}
-                                        ])
-    query_output = list(query_output)
-    pp = pprint.PrettyPrinter(indent=4)
-    pp.pprint(query_output)
+                                                {"$group": {"_id": "$_id.eventId", "count_list": {
+                                                    "$push": {"date": "$_id.date", "month": "$_id.month",
+                                                              "count": "$count"}}}}
+                                                ])
 
-    for event in query_output:
-        event_collection_list = []
-        for collection in event['collections']:
-            event_collection_list.append([
-                event['_id']['name'],
-                datetime.datetime.strptime(str(collection['date'])
-                                           + "-" + str(collection['month']) + "-2018", "%d-%m-%Y"),
-                collection['totalCollection']
-            ])
-            event_collection_list.sort(key=lambda r: r[1])
-        df = pd.DataFrame(data=event_collection_list, columns=columns)
-        df['Date'] = df['Date'].map(lambda x: x.strftime("%d-%m-%Y"))
-        df_list.append(df)
+    query_output = sorted(list(query_output), key=lambda k: k['_id'])
+    event_list = []
 
-    # Write to excel
     i = 0
-    for df in df_list:
-        df.to_excel('df' + str(i) + '.xlsx')
-        print(df)
+    for event in query_output:
+        if events_output[i]['_id'] == event['_id']:
+            # Append name to event_list
+            event_list.append(events_output[i][mapping['name']])
+
+            # generate a python list of collections
+            event_collection_list = []
+            for collection in event['count_list']:
+                event_collection_list.append([
+                    events_output[i][mapping['name']],
+                    datetime.datetime.strptime(str(collection['date'])
+                                               + "-" + str(collection['month']) + "-2018", "%d-%m-%Y"),
+                    collection['count'] * events_output[i][mapping['fee']]
+                ])
+                event_collection_list.sort(key=lambda r: r[1])
+            df = pd.DataFrame(data=event_collection_list, columns=columns)
+            df['Date'] = df['Date'].map(lambda x: x.strftime("%d-%m-%Y"))
+            df_list.append(df)
+
         i += 1
+
+    helper.write_to_excel(df_list, event_list, 'collections')
 
 
 if __name__ == '__main__':
