@@ -18,12 +18,12 @@
   "pStatus": "pStatus",
   "pRound": "pRound",
   "pRegDate": "registrationDate",
-  "pYear": "pYear",
+  "pYear": "year",
   "eventManagers": "managers",
   "mName": "name",
   "mContact": "phone",
   "type": "type",
   "deptCategory": "deptCategory",
   "fee": "entryFee",
-  "maxParticipants": "maxParticipants"
+  "maxParticipants": "teamSize"
 }
