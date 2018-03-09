@@ -109,7 +109,7 @@ def main():
                                             "department": 1, "eventType": 1}}])),
         key=lambda k: k['_id']
     )
-    date = 8
+    date = 3
     query_output = db.participations.aggregate([{"$group": {
         "_id": {"eventID": "$eventId",
                 "year": "$year",
@@ -128,23 +128,26 @@ def main():
     i = 0
     event_list = []
     for event in query_output:
-        if events_output[i]['_id'] == event['_id']['eventID']:
-            # Append name to event_list
-            if events_output[i]['eventType'].lower() != 'technical':
-                events_output[i]['department'] = 'Sheet1'
-            event_list.append(
-                [events_output[i][mapping['name']],
-                 events_output[i]['eventType'],
-                 events_output[i]['department']]
-            )
-            year_list = [0] * 4
-            for entry in sorted(event['count_list'], key=lambda x: x['year']):
-                year_list[entry['year'] - 1] = entry['count']
-            year_list.insert(0, events_output[i]['eventName'])
-            df_list.append(
-                pd.DataFrame(data=[year_list], columns=columns)
-            )
-        i += 1
+        while True:
+            if events_output[i]['_id'] == event['_id']['eventID']:
+                # Append name to event_list
+                if events_output[i]['eventType'].lower() != 'technical':
+                    events_output[i]['department'] = 'Sheet1'
+                event_list.append(
+                    [events_output[i][mapping['name']],
+                     events_output[i]['eventType'],
+                     events_output[i]['department']]
+                )
+                year_list = [0] * 4
+                for entry in sorted(event['count_list'], key=lambda x: x['year']):
+                    year_list[int(entry['year']) - 1] = entry['count']
+                year_list.insert(0, events_output[i]['eventName'])
+                df_list.append(
+                    pd.DataFrame(data=[year_list], columns=columns)
+                )
+                i += 1
+                break
+            i += 1
     i = 0
 
     write_to_excel(df_list, event_list, 'part_year')

@@ -98,7 +98,7 @@ def main():
         key=lambda k: k['_id']
     )
 
-    cur_date = 8
+    cur_date = 3
     query_output = db.participations.aggregate([{"$group": {"_id": {"eventId": "$eventId",
                                                             "date": {
                                                                 "$dayOfMonth": "$" + mapping["pRegDate"]},
@@ -120,32 +120,34 @@ def main():
 
     i = 0
     for event in query_output:
-        if events_output[i]['_id'] == event['_id']['_id']:
-            # Append name to event_list
-            if events_output[i]['eventType'].lower() != 'technical':
-                events_output[i]['department'] = 'Sheet1'
-            event_list.append(
-                [events_output[i][mapping['name']],
-                 events_output[i]['eventType'],
-                 events_output[i]['department']]
-            )
+        while True:
+            if events_output[i]['_id'] == event['_id']['_id']:
+                # Append name to event_list
+                if events_output[i]['eventType'].lower() != 'technical':
+                    events_output[i]['department'] = 'Sheet1'
+                event_list.append(
+                    [events_output[i][mapping['name']],
+                     events_output[i]['eventType'],
+                     events_output[i]['department']]
+                )
 
-            # generate a python list of collections
-            event_collection_list = []
-            for collection in event['count_list']:
-                event_collection_list.append([
-                    events_output[i][mapping['name']],
-                    collection['count'],
-                    # datetime.datetime.strptime(str(collection['date'])
-                    #                            + "-" + str(collection['month']) + "-2018", "%d-%m-%Y"),
-                    collection['count'] * events_output[i][mapping['fee']]
-                ])
-                event_collection_list.sort(key=lambda r: r[1])
-            df = pd.DataFrame(data=event_collection_list, columns=columns)
-            # df['Date'] = df['Date'].map(lambda x: x.strftime("%d-%m-%Y"))
-            df_list.append(df)
-
-        i += 1
+                # generate a python list of collections
+                event_collection_list = []
+                for collection in event['count_list']:
+                    event_collection_list.append([
+                        events_output[i][mapping['name']],
+                        collection['count'],
+                        # datetime.datetime.strptime(str(collection['date'])
+                        #                            + "-" + str(collection['month']) + "-2018", "%d-%m-%Y"),
+                        collection['count'] * events_output[i][mapping['fee']]
+                    ])
+                    event_collection_list.sort(key=lambda r: r[1])
+                df = pd.DataFrame(data=event_collection_list, columns=columns)
+                # df['Date'] = df['Date'].map(lambda x: x.strftime("%d-%m-%Y"))
+                df_list.append(df)
+                i += 1
+                break
+            i += 1
 
     write_to_excel(df_list, event_list, 'collections')
 
